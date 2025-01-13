@@ -1,0 +1,68 @@
+<html>
+
+<body>
+    <div id="root"></div>
+</body>
+
+<script src="https://resource.zegocloud.com/prebuilt/crypto-js.js"></script>
+<script src="https://resource.zegocloud.com/prebuilt/prebuiltToken.js"></script>
+<script src="https://zegocloud.github.io/zegocloud_prebuilt_webrtc/ZegoPrebuilt/index.umd.js"></script>
+<script>
+    const TOKEN = generatePrebuiltToken(
+        862173561,
+        "151f33f5218d1683a689de7949d172d4",
+        'room2',
+        'UserID-' + Math.random(),
+        'jack' + Math.random()
+    );
+
+    const zp = ZegoUIKitPrebuilt.create(TOKEN);
+    zp.joinRoom({
+        container: document.querySelector("#root"),
+        scenario: { mode: ZegoUIKitPrebuilt.VideoConference },
+    });
+
+    zp.on("stream-added", (stream) => {
+        const videoTrack = stream.mediaStream.getVideoTracks()[0];
+        processVideoStream(videoTrack);
+    });
+
+    function processVideoStream(videoTrack) {
+        const video = document.createElement("video");
+        video.srcObject = new MediaStream([videoTrack]);
+        video.play();
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        video.addEventListener("play", () => {
+            setInterval(() => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Get the frame as an image data URL
+                const frameData = canvas.toDataURL("image/png");
+
+                // Send the frame for processing
+                sendFrameForProcessing(frameData);
+            }, 500); // Process every 500ms
+        });
+    }
+
+    function sendFrameForProcessing(frameData) {
+        fetch("http://127.0.0.1:5000/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ frame: frameData }),
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                console.log("Prediction:", data.prediction);
+                // Add logic to display predictions in the UI
+            })
+            .catch((error) => console.error("Error:", error));
+    }
+</script>
+
+</html>
